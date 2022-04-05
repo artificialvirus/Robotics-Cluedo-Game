@@ -15,6 +15,14 @@ import actionlib
 from actionlib_msgs.msg import *
 from geometry_msgs.msg import Pose, Point, Quaternion
 
+import os.path
+path = os.path.expanduser("~/catkin_ws/src/group_project/world/input_points.yaml")
+import yaml
+with open(path,"r") as stream:
+    points = yaml.safe_load(stream)
+
+
+
 class GoToPose():
     def __init__(self):
 
@@ -22,7 +30,7 @@ class GoToPose():
 
 	# What to do if shut down (e.g. Ctrl-C or failure)
 	rospy.on_shutdown(self.shutdown)
-	
+
 	# Tell the action client that we want to spin a thread by default
 	self.move_base = actionlib.SimpleActionClient("move_base", MoveBaseAction)
 	rospy.loginfo("Wait for the action server to come up")
@@ -43,7 +51,7 @@ class GoToPose():
         self.move_base.send_goal(goal)
 
 	# Allow TurtleBot up to 60 seconds to complete task
-	success = self.move_base.wait_for_result(rospy.Duration(60)) 
+	success = self.move_base.wait_for_result(rospy.Duration(60))
 
         state = self.move_base.get_state()
         result = False
@@ -125,15 +133,17 @@ def main(args):
     # You may need to wrap rospy.spin() in an exception handler in case of KeyboardInterrupts
     # rospy.init_node('colourIdentifier', anonymous=True)
     #-1.43, 1.15
+
+    # Flag for navigation choices (conditionals)
+    green_circle_flag = False
     try:
+        # Go to room 1 entrance
         rospy.init_node('nav_test', anonymous=True)
         navigator = GoToPose()
 
-        # Customize the following values so they are appropriate for your location
-        #-2.3, 5.63
-        x = -2.3 #-5.0 # SPECIFY X COORDINATE HERE
-        y = 5.63 #-0.2 # SPECIFY Y COORDINATE HERE
-        theta = 0 # 30# SPECIFY THETA (ROTATION) HERE
+        x = points['room1_entrance_xy'][0]
+        y = points['room1_entrance_xy'][1]
+        theta = 0 # SPECIFY THETA (ROTATION) HERE
         position = {'x': x, 'y' : y}
         quaternion = {'r1' : 0.000, 'r2' : 0.000, 'r3' : np.sin(theta/2.0), 'r4' : np.cos(theta/2.0)}
 
@@ -141,9 +151,57 @@ def main(args):
         success = navigator.goto(position, quaternion)
 
         if success:
-            rospy.loginfo("Hooray, reached the desired pose")
+            rospy.loginfo("reached room 1  enterance")
         else:
-            rospy.loginfo("The base failed to reach the desired pose")
+            rospy.loginfo("The base failed to reach room 1  enterance")
+
+        # Enter this room if green circle...
+        if green_circle_flag:
+            x = points['room1_centre_xy'][0]
+            y = points['room1_centre_xy'][1]
+            theta = 0 # SPECIFY THETA (ROTATION) HERE
+            position = {'x': x, 'y' : y}
+            quaternion = {'r1' : 0.000, 'r2' : 0.000, 'r3' : np.sin(theta/2.0), 'r4' : np.cos(theta/2.0)}
+
+            rospy.loginfo("Go to (%s, %s) pose", position['x'], position['y'])
+            success = navigator.goto(position, quaternion)
+
+            if success:
+                rospy.loginfo("Reached the room 1 centre")
+            else:
+                rospy.loginfo("The base failed to reach room 1 centre")
+
+        # Else go to other enterance
+        else:
+            x = points['room2_entrance_xy'][0]
+            y = points['room2_entrance_xy'][1]
+            theta = 0 # SPECIFY THETA (ROTATION) HERE
+            position = {'x': x, 'y' : y}
+            quaternion = {'r1' : 0.000, 'r2' : 0.000, 'r3' : np.sin(theta/2.0), 'r4' : np.cos(theta/2.0)}
+
+            rospy.loginfo("Go to (%s, %s) pose", position['x'], position['y'])
+            success = navigator.goto(position, quaternion)
+
+            if success:
+                rospy.loginfo("Reached room 2 enterance")
+            else:
+                rospy.loginfo("The base failed to reach room 2 enterance")
+
+            # Enter this room if green circle...
+            if green_circle_flag:
+                x = points['room2_centre_xy'][0]
+                y = points['room2_centre_xy'][1]
+                theta = 0 # SPECIFY THETA (ROTATION) HERE
+                position = {'x': x, 'y' : y}
+                quaternion = {'r1' : 0.000, 'r2' : 0.000, 'r3' : np.sin(theta/2.0), 'r4' : np.cos(theta/2.0)}
+
+                rospy.loginfo("Go to (%s, %s) pose", position['x'], position['y'])
+                success = navigator.goto(position, quaternion)
+
+                if success:
+                    rospy.loginfo("Reached room 2 centre")
+                else:
+                    rospy.loginfo("The base failed to reach room 2 centre")
         # rospy.spin()
     except KeyboardInterrupt:
         print("Shutting down")
