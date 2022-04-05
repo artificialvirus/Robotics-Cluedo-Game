@@ -91,37 +91,30 @@ class colourIdentifier():
         except CvBridgeError as e:
             print(e)
         # Set the upper and lower bounds for the two colours you wish to identify
-        hsv_green_lower = np.array([60 - self.sensitivity, 100, 100])
-        hsv_green_upper = np.array([60 + self.sensitivity, 255, 255])
-        hsv_blue_lower = np.array([110 - self.sensitivity,50, 50])
-        hsv_blue_upper = np.array([120 + self.sensitivity,255, 255])
+        hsv_green_lower = np.array([55 - self.sensitivity, 100, 0])
+        hsv_green_upper = np.array([65 + self.sensitivity, 255, 255])
+
+        hsv_red_lower1 = np.array([10 - self.sensitivity,0,0])
+        hsv_red_lower2 = np.array([175 - self.sensitivity,160,0])
+
+        hsv_red_upper1 = np.array([40 + self.sensitivity,255,255])
+        hsv_red_upper2 = np.array([170 + self.sensitivity,255,255])
+        
         # Convert the rgb image into a hsv image [5, 5, 50], [25, 25, 145]
         Hsv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
+
+        lower_mask_red = cv2.inRange(cv_image, hsv_red_lower1, hsv_red_upper1)
+        upper_mask_red = cv2.inRange(cv_image, hsv_red_lower2, hsv_red_upper2)
+        filter1 = lower_mask_red + upper_mask_red
+
+        filter2 = cv2.inRange(Hsv_image, hsv_green_lower, hsv_green_upper)
+
         # Filter out everything but particular colours using the cv2.inRange() method
         # Do this for each colour
-        mask = cv2.inRange(Hsv_image, hsv_green_lower, hsv_green_upper)
-        # produce an output that a human would find useful
-        human = cv2.bitwise_and(Hsv_image, Hsv_image, mask=mask)
-        # To combine the masks you should use the cv2.bitwise_or() method
-        # You can only bitwise_or two images at once, so multiple calls are necessary for more than two colours
-        mask2 = cv2.inRange(Hsv_image, hsv_blue_lower, hsv_blue_upper)
-        combined = cv2.bitwise_or(mask, mask2)
-        # Apply the mask to the original image using the cv2.bitwise_and() method
-        # As mentioned on the worksheet the best way to do this is to...
-        #bitwise and an image with itself and pass the mask to the mask parameter (rgb_image,rgb_image, mask=mask)
-        # As opposed to performing a bitwise_and on the mask and the image.
-
-
-
-        #Show the resultant images you have created. You can show all of them or just the end result if you wish to.
-        cv2.imshow("Image window", cv_image)
-        cv2.imshow("HSV_Image window", Hsv_image)
-        cv2.imshow("Mask2",mask2)
-        cv2.imshow("Human",human)
-        cv2.imshow("MaskC",combined)
-        cv2.imshow("Mask",mask)
-
-
+        mask = cv2.bitwise_or(filter1,filter2)
+        output = cv2.bitwise_and(cv_image, cv_image, mask=mask)
+        cv2.namedWindow('camera_Feed')
+        cv2.imshow('camera_Feed', output)
         cv2.waitKey(3)
 # Create a node of your class in the main and ensure it stays up and running
 # handling exceptions and such
@@ -140,6 +133,7 @@ def main(args):
         # Go to room 1 entrance
         rospy.init_node('nav_test', anonymous=True)
         navigator = GoToPose()
+        cI = colourIdentifier()
 
         x = points['room1_entrance_xy'][0]
         y = points['room1_entrance_xy'][1]
