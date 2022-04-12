@@ -290,15 +290,24 @@ def main(args):
     # Flag for navigation choices (conditionals)
     green_circle_flag = False
 
-    rospy.init_node('nav_test', anonymous=True)
 
-    navigator = GoToPose()
-    cI = colourIdentifier()
-    objDet = ObjectDetection(camera=True)
 
 
     try:
         # Go to room 1 entrance
+
+        rospy.init_node('nav_test', anonymous=True)
+
+        navigator = GoToPose()
+        cI = colourIdentifier()
+        objDet = ObjectDetection(camera=True)
+
+
+        pub = rospy.Publisher('mobile_base/commands/velocity', Twist, queue_size=10)
+        rate = rospy.Rate(5)
+        spin = Twist()
+        spin.angular.z = 0.8
+
 
 
         x = points['room1_entrance_xy'][0]
@@ -316,7 +325,7 @@ def main(args):
             rospy.loginfo("The base failed to reach room 1  enterance")
 
         # Enter this room if green circle...
-        if green_circle_flag:
+        if cI.green_circle_flag:
             x = points['room1_centre_xy'][0]
             y = points['room1_centre_xy'][1]
             theta = 0 # SPECIFY THETA (ROTATION) HERE
@@ -341,6 +350,9 @@ def main(args):
 
             rospy.loginfo("Go to (%s, %s) pose", position['x'], position['y'])
             success = navigator.goto(position, quaternion)
+            for i in range(10):
+                pub.publish(spin)
+                rate.sleep()
 
             if success:
                 rospy.loginfo("Reached room 2 enterance")
@@ -348,7 +360,7 @@ def main(args):
                 rospy.loginfo("The base failed to reach room 2 enterance")
 
             # Enter this room if green circle...
-            if green_circle_flag:
+            if cI.green_circle_flag:
                 x = points['room2_centre_xy'][0]
                 y = points['room2_centre_xy'][1]
                 theta = 0 # SPECIFY THETA (ROTATION) HERE
