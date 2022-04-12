@@ -82,6 +82,8 @@ class colourIdentifier():
         # We covered which topic to subscribe to should you wish to receive image data
         self.image_sub = rospy.Subscriber("camera/rgb/image_raw",Image, self.callback)
 
+        # Initialise flags
+        self.green_circle_flag = False
 
     def callback(self, data):
         # Convert the received image into a opencv image
@@ -99,7 +101,7 @@ class colourIdentifier():
 
         hsv_red_upper1 = np.array([40 + self.sensitivity,255,255])
         hsv_red_upper2 = np.array([170 + self.sensitivity,255,255])
-        
+
         # Convert the rgb image into a hsv image [5, 5, 50], [25, 25, 145]
         Hsv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
 
@@ -113,6 +115,16 @@ class colourIdentifier():
         # Do this for each colour
         mask = cv2.bitwise_or(filter1,filter2)
         output = cv2.bitwise_and(cv_image, cv_image, mask=mask)
+
+        contours, heirachical = cv2.findContours(filter2 ,cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+        if len(contours) > 0:
+            contour_sizes = [(cv2.contourArea(contour), contour) for contour in contours]
+            biggest_contour = max(contour_sizes, key=lambda x: x[0])[1]
+            M = cv2.moments(biggest_contour)
+            cx, cy = int(M['m10']/M['m00']), int(M['m01']/M['m00'])
+            if cv2.contourArea(biggest_contour) > 5 :
+                self.green_circle_flag = True
+
         cv2.namedWindow('camera_Feed')
         cv2.imshow('camera_Feed', output)
         cv2.waitKey(3)
@@ -128,12 +140,17 @@ def main(args):
     #-1.43, 1.15
 
     # Flag for navigation choices (conditionals)
-    green_circle_flag = False
     try:
         # Go to room 1 entrance
         rospy.init_node('nav_test', anonymous=True)
         navigator = GoToPose()
         cI = colourIdentifier()
+        pub = rospy.Publisher('mobile_base/commands/velocity', Twist, queue_size=10)
+        rate = rospy.Rate(5)
+        spin = Twist()
+        spin.angular.z = 0.8
+
+
 
         x = points['room1_entrance_xy'][0]
         y = points['room1_entrance_xy'][1]
@@ -150,7 +167,7 @@ def main(args):
             rospy.loginfo("The base failed to reach room 1  enterance")
 
         # Enter this room if green circle...
-        if green_circle_flag:
+        if cI.green_circle_flag:
             x = points['room1_centre_xy'][0]
             y = points['room1_centre_xy'][1]
             theta = 0 # SPECIFY THETA (ROTATION) HERE
@@ -175,6 +192,9 @@ def main(args):
 
             rospy.loginfo("Go to (%s, %s) pose", position['x'], position['y'])
             success = navigator.goto(position, quaternion)
+            for i in range(10):
+                pub.publish(spin)
+                rate.sleep()
 
             if success:
                 rospy.loginfo("Reached room 2 enterance")
@@ -182,7 +202,7 @@ def main(args):
                 rospy.loginfo("The base failed to reach room 2 enterance")
 
             # Enter this room if green circle...
-            if green_circle_flag:
+            if cI.green_circle_flag:
                 x = points['room2_centre_xy'][0]
                 y = points['room2_centre_xy'][1]
                 theta = 0 # SPECIFY THETA (ROTATION) HERE
