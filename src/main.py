@@ -33,7 +33,7 @@ flann_prms = dict(algorithm = flann_index_lsh,
 Template = namedtuple('Template', 'image, name, keypoints, descriptors')
 
 import os.path
-path = os.path.expanduser("/home/csunix/sc19ao/catkin_ws/src/group_project/world/input_points.yaml")
+path = os.path.expanduser("~/catkin_ws/src/group_project/world/input_points.yaml")
 import yaml
 with open(path,"r") as stream:
     points = yaml.safe_load(stream)
@@ -143,7 +143,7 @@ class ObjectDetection():
                      'plum' : 'plum.png'}
 
         for name, filename in tmplts.iteritems():
-            image = cv2.imread('/home/csunix/sc19ao/catkin_ws/src/group_project/cluedo_images/' + filename)
+            image = cv2.imread('~/catkin_ws/src/group_project/cluedo_images/' + filename)
             image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             self.tmplt(image.copy(), name)
 
@@ -323,6 +323,9 @@ def main(args):
         spin.angular.z = 0.8
 
 
+        rospy.spin()
+
+
 
         x = points['room1_entrance_xy'][0]
         y = points['room1_entrance_xy'][1]
@@ -388,7 +391,7 @@ def main(args):
                     rospy.loginfo("Reached room 2 centre")
                 else:
                     rospy.loginfo("The base failed to reach room 2 centre")
-        # rospy.spin()
+        #rospy.spin()
     except KeyboardInterrupt:
         print("Shutting down")
     cv2.destroyAllWindows()
