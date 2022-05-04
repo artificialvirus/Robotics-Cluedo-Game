@@ -33,7 +33,7 @@ flann_prms = dict(algorithm = flann_index_lsh,
 Template = namedtuple('Template', 'image, name, keypoints, descriptors')
 
 import os.path
-path = os.path.expanduser("~/catkin_ws/src/group_project/world/input_points.yaml")
+path = os.path.expanduser("/home/csunix/sc19ban/catkin_ws/src/group_project/world/input_points.yaml")
 import yaml
 with open(path,"r") as stream:
     points = yaml.safe_load(stream)
@@ -43,24 +43,29 @@ with open(path,"r") as stream:
 class GoToPose():
     def __init__(self):
 
+
+
+
         self.goal_sent = False
 
+
 	# What to do if shut down (e.g. Ctrl-C or failure)
-	rospy.on_shutdown(self.shutdown)
+        rospy.on_shutdown(self.shutdown)
 
 	# Tell the action client that we want to spin a thread by default
-	self.move_base = actionlib.SimpleActionClient("move_base", MoveBaseAction)
-	rospy.loginfo("Wait for the action server to come up")
+        self.move_base = actionlib.SimpleActionClient("move_base", MoveBaseAction)
+        rospy.loginfo("Wait for the action server to come up")
 
-	self.move_base.wait_for_server()
+        self.move_base.wait_for_server()
 
     def goto(self, pos, quat):
 
+
         # Send a goal
         self.goal_sent = True
-	goal = MoveBaseGoal()
-	goal.target_pose.header.frame_id = 'map'
-	goal.target_pose.header.stamp = rospy.Time.now()
+        goal = MoveBaseGoal()
+        goal.target_pose.header.frame_id = 'map'
+        goal.target_pose.header.stamp = rospy.Time.now()
         goal.target_pose.pose = Pose(Point(pos['x'], pos['y'], 0.000),
                                      Quaternion(quat['r1'], quat['r2'], quat['r3'], quat['r4']))
 
@@ -68,8 +73,7 @@ class GoToPose():
         self.move_base.send_goal(goal)
 
 	# Allow TurtleBot up to 60 seconds to complete task
-	success = self.move_base.wait_for_result(rospy.Duration(60))
-
+        success = self.move_base.wait_for_result(rospy.Duration(60))
         state = self.move_base.get_state()
         result = False
 
@@ -143,7 +147,7 @@ class ObjectDetection():
                      'plum' : 'plum.png'}
 
         for name, filename in tmplts.iteritems():
-            image = cv2.imread('~/catkin_ws/src/group_project/cluedo_images/' + filename)
+            image = cv2.imread('/home/csunix/sc19ban/catkin_ws/src/group_project/cluedo_images/' + filename)
             image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             self.tmplt(image.copy(), name)
 
@@ -282,7 +286,7 @@ class colourIdentifier():
             contour_sizes = [(cv2.contourArea(contour), contour) for contour in contours]
             biggest_contour = max(contour_sizes, key=lambda x: x[0])[1]
             M = cv2.moments(biggest_contour)
-            cx, cy = int(M['m10']/M['m00']), int(M['m01']/M['m00'])
+            cx, cy = int(M['m10']/(M['m00']+1e-5)), int(M['m01']/(M['m00']+1e-5))
             if cv2.contourArea(biggest_contour) > 5 :
                 self.green_circle_flag = True
 
@@ -292,6 +296,70 @@ class colourIdentifier():
         cv2.waitKey(3)
 # Create a node of your class in the main and ensure it stays up and running
 # handling exceptions and such
+
+class rectangleIdentifier():
+
+    def __init__(self):
+        # Initialise the value you wish to use for sensitivity in the colour detection (10 should be enough)
+        self.sensitivity = 10
+        # Remember to initialise a CvBridge() and set up a subscriber to the image topic you wish to use
+        self.bridge = CvBridge()
+
+        # We covered which topic to subscribe to should you wish to receive image data
+        self.image_sub = rospy.Subscriber("camera/rgb/image_raw",Image, self.callback)
+
+
+        self.found_rectangle = False
+        self.x = 0
+        self.y = 0
+
+
+    def callback(self, data):
+        # Convert the received image into a opencv image
+        # But remember that you should always wrap a call to this conversion method in an exception handler
+        try:
+            cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
+        except CvBridgeError as e:
+            print(e)
+        # Set the upper and lower bounds for the two colours you wish to identify
+        hsv_green_lower = np.array([55 - self.sensitivity, 100, 0])
+        hsv_green_upper = np.array([65 + self.sensitivity, 255, 255])
+
+        hsv_red_lower1 = np.array([10 - self.sensitivity,50,100])
+        # hsv_red_lower2 = np.array([175 - self.sensitivity,160,0])
+
+        hsv_red_upper1 = np.array([-5 + self.sensitivity,255,255])
+        # hsv_red_upper2 = np.array([170 + self.sensitivity,255,255])
+
+        # Convert the rgb image into a hsv image [5, 5, 50], [25, 25, 145]
+        Hsv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
+
+        # lower_mask_red = cv2.inRange(cv_image, hsv_red_lower1, hsv_red_upper1)
+        # upper_mask_red = cv2.inRange(cv_image, hsv_red_lower2, hsv_red_upper2)
+        # filter1 = lower_mask_red + upper_mask_red
+        filter1 = cv2.inRange(Hsv_image, hsv_red_lower1, hsv_red_upper1)
+        filter2 = cv2.inRange(Hsv_image, hsv_green_lower, hsv_green_upper)
+
+        # Filter out everything but particular colours using the cv2.inRange() method
+        # Do this for each colour
+        mask = cv2.bitwise_or(filter1,filter2)
+        output = cv2.bitwise_and(cv_image, cv_image, mask=filter1)
+
+        contours, heirachical = cv2.findContours(filter1 ,cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if len(contours) > 0:
+            contour_sizes = [(cv2.contourArea(contour), contour) for contour in contours]
+            biggest_contour = max(contour_sizes, key=lambda x: x[0])[1]
+            M = cv2.moments(biggest_contour)
+            cx, cy = int(M['m10']/(M['m00']+1e-5)), int(M['m01']/(M['m00']+1e-5))
+            if cv2.contourArea(biggest_contour) > 5 :
+                self.found_rectangle = True
+                self.x = cx 
+                self.y = cy
+                print(self.found_rectangle)
+
+        cv2.namedWindow('camera_Feed2')
+        cv2.imshow('camera_Feed2', output)
+        cv2.waitKey(3)
 def main(args):
     # Instantiate your class
     # And rospy.init the entire node
@@ -311,21 +379,19 @@ def main(args):
         # Go to room 1 entrance
 
         rospy.init_node('nav_test', anonymous=True)
-
+        
         navigator = GoToPose()
+
         cI = colourIdentifier()
+        rI = rectangleIdentifier()
         objDet = ObjectDetection(camera=True)
 
 
         pub = rospy.Publisher('mobile_base/commands/velocity', Twist, queue_size=10)
+        rospy.loginfo('2PLEASE NOTICE THIS NOTICE')
         rate = rospy.Rate(5)
         spin = Twist()
         spin.angular.z = 0.8
-
-
-        rospy.spin()
-
-
 
         x = points['room1_entrance_xy'][0]
         y = points['room1_entrance_xy'][1]
@@ -354,6 +420,14 @@ def main(args):
 
             if success:
                 rospy.loginfo("Reached the room 1 centre")
+                for i in range(10):
+                        pub.publish(spin)
+                        rate.sleep()
+                        if rI.found_rectangle is True:
+                            x = rI.x
+                            y = rI.y
+                            print('Image x is: %s Image y is: %s',x,y)
+                            break
             else:
                 rospy.loginfo("The base failed to reach room 1 centre")
 
@@ -373,6 +447,7 @@ def main(args):
 
             if success:
                 rospy.loginfo("Reached room 2 enterance")
+                
             else:
                 rospy.loginfo("The base failed to reach room 2 enterance")
 
@@ -389,8 +464,15 @@ def main(args):
 
                 if success:
                     rospy.loginfo("Reached room 2 centre")
+                    if rI.found_rectangle is True:
+                        x = rI.x
+                        y = rI.y
+                        print('Image x is: %s Image y is: %s',x,y)
+
                 else:
                     rospy.loginfo("The base failed to reach room 2 centre")
+
+        rospy.spin()
         #rospy.spin()
     except KeyboardInterrupt:
         print("Shutting down")
