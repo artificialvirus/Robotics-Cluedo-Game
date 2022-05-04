@@ -34,6 +34,7 @@ Template = namedtuple('Template', 'image, name, keypoints, descriptors')
 
 import os.path
 path = os.path.expanduser("/home/csunix/sc19ban/catkin_ws/src/group_project/world/input_points.yaml")
+
 import yaml
 with open(path,"r") as stream:
     points = yaml.safe_load(stream)
@@ -147,7 +148,9 @@ class ObjectDetection():
                      'plum' : 'plum.png'}
 
         for name, filename in tmplts.iteritems():
+
             image = cv2.imread('/home/csunix/sc19ban/catkin_ws/src/group_project/cluedo_images/' + filename)
+
             image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             self.tmplt(image.copy(), name)
 
@@ -353,7 +356,7 @@ class rectangleIdentifier():
             cx, cy = int(M['m10']/(M['m00']+1e-5)), int(M['m01']/(M['m00']+1e-5))
             if cv2.contourArea(biggest_contour) > 5 :
                 self.found_rectangle = True
-                self.x = cx 
+                self.x = cx
                 self.y = cy
                 print(self.found_rectangle)
 
@@ -379,12 +382,11 @@ def main(args):
         # Go to room 1 entrance
 
         rospy.init_node('nav_test', anonymous=True)
-        
+
         navigator = GoToPose()
 
         cI = colourIdentifier()
         rI = rectangleIdentifier()
-        objDet = ObjectDetection(camera=True)
 
 
         pub = rospy.Publisher('mobile_base/commands/velocity', Twist, queue_size=10)
@@ -447,7 +449,7 @@ def main(args):
 
             if success:
                 rospy.loginfo("Reached room 2 enterance")
-                
+
             else:
                 rospy.loginfo("The base failed to reach room 2 enterance")
 
@@ -473,7 +475,7 @@ def main(args):
                     rospy.loginfo("The base failed to reach room 2 centre")
 
         rospy.spin()
-        #rospy.spin()
+
     except KeyboardInterrupt:
         print("Shutting down")
     cv2.destroyAllWindows()
