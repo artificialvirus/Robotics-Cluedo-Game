@@ -328,10 +328,10 @@ class rectangleIdentifier():
         # hsv_green_lower = np.array([55 - self.sensitivity, 100, 0])
         # hsv_green_upper = np.array([65 + self.sensitivity, 255, 255])
 
-        hsv_yellow_lower = np.array([35-self.sensitivity,50,100])
+        hsv_yellow_lower = np.array([35-self.sensitivity,50,15])
         hsv_red_lower1 = np.array([10 - self.sensitivity,50,15])
 
-        hsv_blue_lower = np.array([100 - self.sensitivity,30,100])
+        hsv_blue_lower = np.array([100 - self.sensitivity,30,15])
         hsv_purple_lower = np.array([140 - self.sensitivity,30,15])
                 # hsv_red_lower2 = np.array([175 - self.sensitivity,160,0])
         hsv_purple_upper = np.array([150+self.sensitivity,255,255])
