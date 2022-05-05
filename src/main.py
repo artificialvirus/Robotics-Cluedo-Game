@@ -18,10 +18,11 @@ from geometry_msgs.msg import Pose, Point, Quaternion
 from collections import namedtuple, Counter
 
 
-flann_index_kdtr = 1
-flann_index_lsh = 6
-
 min_mtchs = 10
+flann_index_lsh = 6
+flann_index_kdtr = 1
+
+
 
 flann_prms = dict(algorithm = flann_index_lsh,
                    table_number = 6,
@@ -226,7 +227,10 @@ class ObjectDetection():
 
         if detected:
             counter = Counter(detected)
-            print("Detected: " + counter.most_common(1)[0][0])
+
+            file_path = '/home/csunix/sc19ao/catkin_ws/src/group_project/'
+            with open(file_path + 'cluedo_character.txt', 'x') as txt_file:
+                txt_file.write("Detected: " + counter.most_common(1)[0][0])
         else:
             print("Can not find.")
 
@@ -316,7 +320,8 @@ def main(args):
 
         rospy.init_node('nav_test', anonymous=True)
 
-        
+        navigator = GoToPose()
+        cI = colourIdentifier()
         objDet = ObjectDetection(camera=True)
 
 
@@ -330,7 +335,70 @@ def main(args):
 
 
 
-        
+        x = points['room1_entrance_xy'][0]
+        y = points['room1_entrance_xy'][1]
+        theta = 0 # SPECIFY THETA (ROTATION) HERE
+        position = {'x': x, 'y' : y}
+        quaternion = {'r1' : 0.000, 'r2' : 0.000, 'r3' : np.sin(theta/2.0), 'r4' : np.cos(theta/2.0)}
+
+        rospy.loginfo("Go to (%s, %s) pose", position['x'], position['y'])
+        success = navigator.goto(position, quaternion)
+
+        if success:
+            rospy.loginfo("reached room 1  enterance")
+        else:
+            rospy.loginfo("The base failed to reach room 1  enterance")
+
+        # Enter this room if green circle...
+        if cI.green_circle_flag:
+            x = points['room1_centre_xy'][0]
+            y = points['room1_centre_xy'][1]
+            theta = 0 # SPECIFY THETA (ROTATION) HERE
+            position = {'x': x, 'y' : y}
+            quaternion = {'r1' : 0.000, 'r2' : 0.000, 'r3' : np.sin(theta/2.0), 'r4' : np.cos(theta/2.0)}
+
+            rospy.loginfo("Go to (%s, %s) pose", position['x'], position['y'])
+            success = navigator.goto(position, quaternion)
+
+            if success:
+                rospy.loginfo("Reached the room 1 centre")
+            else:
+                rospy.loginfo("The base failed to reach room 1 centre")
+
+        # Else go to other enterance
+        else:
+            x = points['room2_entrance_xy'][0]
+            y = points['room2_entrance_xy'][1]
+            theta = 0 # SPECIFY THETA (ROTATION) HERE
+            position = {'x': x, 'y' : y}
+            quaternion = {'r1' : 0.000, 'r2' : 0.000, 'r3' : np.sin(theta/2.0), 'r4' : np.cos(theta/2.0)}
+
+            rospy.loginfo("Go to (%s, %s) pose", position['x'], position['y'])
+            success = navigator.goto(position, quaternion)
+            for i in range(10):
+                pub.publish(spin)
+                rate.sleep()
+
+            if success:
+                rospy.loginfo("Reached room 2 enterance")
+            else:
+                rospy.loginfo("The base failed to reach room 2 enterance")
+
+            # Enter this room if green circle...
+            if cI.green_circle_flag:
+                x = points['room2_centre_xy'][0]
+                y = points['room2_centre_xy'][1]
+                theta = 0 # SPECIFY THETA (ROTATION) HERE
+                position = {'x': x, 'y' : y}
+                quaternion = {'r1' : 0.000, 'r2' : 0.000, 'r3' : np.sin(theta/2.0), 'r4' : np.cos(theta/2.0)}
+
+                rospy.loginfo("Go to (%s, %s) pose", position['x'], position['y'])
+                success = navigator.goto(position, quaternion)
+
+                if success:
+                    rospy.loginfo("Reached room 2 centre")
+                else:
+                    rospy.loginfo("The base failed to reach room 2 centre")
         #rospy.spin()
     except KeyboardInterrupt:
         print("Shutting down")
