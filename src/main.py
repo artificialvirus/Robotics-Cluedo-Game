@@ -18,10 +18,11 @@ from geometry_msgs.msg import Pose, Point, Quaternion
 from collections import namedtuple, Counter
 
 
-flann_index_kdtr = 1
-flann_index_lsh = 6
-
 min_mtchs = 10
+flann_index_lsh = 6
+flann_index_kdtr = 1
+
+
 
 flann_prms = dict(algorithm = flann_index_lsh,
                    table_number = 6,
@@ -108,6 +109,8 @@ class ObjectDetection():
 
         self.tmplts = []
         self.templates()
+        self.take_picture = False
+        self.detected_character = False
 
 
         if camera:
@@ -118,10 +121,31 @@ class ObjectDetection():
 
         try:
             cv_image = self.bridge.imgmsg_to_cv2(data, 'bgr8')
+            print(cv_image)
+            if self.detected_character == True:
+                cv2.imwrite('/home/csunix/sc19ao/catkin_ws/src/group_project/' +'cv_image.png', cv_image)
+            else:
+                print('character not found')
+
+
+            results =  self.compareFtr(cv_image)
+            if results:
+                counter = Counter(results)
+                print(counter)
+
+            else:
+
+                print("Not able to detect an image.")
+
+            self.drawBoundaries()
         except CvBridgeError as e:
             print(e)
 
+
+
         self.imgIdentify(cv_image)
+
+
 
         cv2.namedWindow('CameraFeed')
         cv2.imshow('CameraFeed', cv_image)
@@ -228,10 +252,52 @@ class ObjectDetection():
             detected = detected + self.compareFtr(image)
 
         if detected:
+            self.detected_character = True
+
             counter = Counter(detected)
-            print("Detected: " + counter.most_common(1)[0][0])
+
+            file_path = '/home/csunix/sc19ao/catkin_ws/src/group_project/'
+            with open(file_path + 'cluedo_character.txt', 'w') as txt_file:
+                txt_file.write("Detected: " + counter.most_common(1)[0][0])
+
+
         else:
             print("Can not find.")
+
+
+
+
+    def drawBoundaries(self):
+
+        tmplts = {'mustard' : 'mustard.png',
+
+                    'scarlet' : 'scarlet.png',
+
+                     'peacock' : 'peacock.png',
+
+                     'plum' : 'plum.png'}
+
+        for name, filename in tmplts.iteritems():
+            image = cv2.imread('/home/csunix/sc19ao/catkin_ws/src/group_project/cluedo_images/' + filename)
+
+
+        image_to_gray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
+
+
+        image_to_gray = cv2.GaussianBlur(image_to_gray,(11,11),0)
+
+
+        edge = cv2.Canny(image_to_gray,100,200)
+
+
+        contours, hierarchy = cv2.findContours(edge.copy(),cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+
+
+        cv2.drawContours(image,contours,-1,[0,255,0],2)
+
+
+        #cv2.imwrite('/home/csunix/sc19ao/catkin_ws/src/group_project/'+ 'found_character.png', image)
+
 
 
 
@@ -417,9 +483,8 @@ def main(args):
 
         rospy.init_node('nav_test', anonymous=True)
 
-        navigator = GoToPose()
 
-        cI = colourIdentifier()
+        objDet = ObjectDetection(camera=True)
 
 
         pub = rospy.Publisher('mobile_base/commands/velocity', Twist, queue_size=10)
@@ -545,6 +610,8 @@ def main(args):
 
 
 
+
+        #rospy.spin()
     except KeyboardInterrupt:
         print("Shutting down")
     cv2.destroyAllWindows()
