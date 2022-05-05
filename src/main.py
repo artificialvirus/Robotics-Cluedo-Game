@@ -491,7 +491,8 @@ def main(args):
         rospy.loginfo('2PLEASE NOTICE THIS NOTICE')
         rate = rospy.Rate(5)
         spin = Twist()
-        spin.angular.z = 0.8
+        spin.angular.z = 0.2
+        
 
         spin2 = Twist()
         spin2.angular.z = -0.8
@@ -530,6 +531,10 @@ def main(args):
 
             if success:
                 rospy.loginfo("Reached the room 1 centre")
+                count_false = 0
+                count_true = 0
+                count_false_final = 0
+                already_true_flag = False
                 rI = rectangleIdentifier()
                 count_rot = 0
                 count_img = 0
@@ -537,6 +542,7 @@ def main(args):
                 for i in range(40):
                     pub.publish(spin)
                     rate.sleep()
+                for i in range(156):
                     if rI.found_rectangle is True:
                         break
                 if rI.found_rectangle is True:
@@ -592,17 +598,34 @@ def main(args):
                 success = navigator.goto(position, quaternion)
 
                 if success:
-                    rospy.loginfo("Reached room 2 centre")
+                    rospy.loginfo("Reached the room 1 centre")
+                    count_false = 0
+                    count_true = 0
+                    count_false_final = 0
+                    already_true_flag = False
                     rI = rectangleIdentifier()
-                    for i in range(40):
+                    while rI.found_rectangle is True:
                         pub.publish(spin)
                         rate.sleep()
+                    for i in range(156):
                         if rI.found_rectangle is True:
-                            break
-                    if rI.found_rectangle is True:
-                        while cv2.contourArea(rI.contour) < 10000:
-                            pub.publish(desired_velocity)
-                            rate.sleep()
+                            count_true = count_true + 1
+                            count_false_final = count_false
+                            already_true_flag = True
+                        else:
+                            if already_true_flag is False:
+                                count_false = count_false + 1
+                        pub.publish(spin)
+                        rate.sleep()
+                        print(rI.found_rectangle)
+                    iter = int(count_false_final + (count_true/2-2))
+                    for i in range(iter):
+                        pub.publish(spin)
+                        rate.sleep()
+                
+                while cv2.contourArea(rI.contour) < 10500:
+                        pub.publish(desired_velocity)
+                        rate.sleep()
 
 
                 else:
