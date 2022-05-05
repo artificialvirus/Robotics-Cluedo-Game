@@ -108,6 +108,8 @@ class ObjectDetection():
 
         self.tmplts = []
         self.templates()
+        self.take_picture = False
+        self.detected_character = False
 
 
         if camera:
@@ -118,10 +120,31 @@ class ObjectDetection():
 
         try:
             cv_image = self.bridge.imgmsg_to_cv2(data, 'bgr8')
+            print(cv_image)
+            if self.detected_character == True:
+                cv2.imwrite('/home/csunix/sc19ao/catkin_ws/src/group_project/' +'cv_image.png', cv_image)
+            else:
+                print('character not found')
+
+
+            results =  self.compareFtr(cv_image)
+            if results:
+                counter = Counter(results)
+                print(counter)
+
+            else:
+
+                print("Not able to detect an image.")
+
+            self.drawBoundaries()
         except CvBridgeError as e:
             print(e)
 
+
+
         self.imgIdentify(cv_image)
+
+
 
         cv2.namedWindow('CameraFeed')
         cv2.imshow('CameraFeed', cv_image)
@@ -226,13 +249,52 @@ class ObjectDetection():
             detected = detected + self.compareFtr(image)
 
         if detected:
+            self.detected_character = True
+
             counter = Counter(detected)
 
             file_path = '/home/csunix/sc19ao/catkin_ws/src/group_project/'
             with open(file_path + 'cluedo_character.txt', 'w') as txt_file:
                 txt_file.write("Detected: " + counter.most_common(1)[0][0])
+
+
         else:
             print("Can not find.")
+
+
+
+
+    def drawBoundaries(self):
+
+        tmplts = {'mustard' : 'mustard.png',
+
+                    'scarlet' : 'scarlet.png',
+
+                     'peacock' : 'peacock.png',
+
+                     'plum' : 'plum.png'}
+
+        for name, filename in tmplts.iteritems():
+            image = cv2.imread('/home/csunix/sc19ao/catkin_ws/src/group_project/cluedo_images/' + filename)
+
+
+        image_to_gray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
+
+
+        image_to_gray = cv2.GaussianBlur(image_to_gray,(11,11),0)
+
+
+        edge = cv2.Canny(image_to_gray,100,200)
+
+
+        contours, hierarchy = cv2.findContours(edge.copy(),cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+
+
+        cv2.drawContours(image,contours,-1,[0,255,0],2)
+
+
+        #cv2.imwrite('/home/csunix/sc19ao/catkin_ws/src/group_project/'+ 'found_character.png', image)
+
 
 
 
@@ -320,8 +382,7 @@ def main(args):
 
         rospy.init_node('nav_test', anonymous=True)
 
-        navigator = GoToPose()
-        cI = colourIdentifier()
+
         objDet = ObjectDetection(camera=True)
 
 
@@ -335,70 +396,7 @@ def main(args):
 
 
 
-        x = points['room1_entrance_xy'][0]
-        y = points['room1_entrance_xy'][1]
-        theta = 0 # SPECIFY THETA (ROTATION) HERE
-        position = {'x': x, 'y' : y}
-        quaternion = {'r1' : 0.000, 'r2' : 0.000, 'r3' : np.sin(theta/2.0), 'r4' : np.cos(theta/2.0)}
 
-        rospy.loginfo("Go to (%s, %s) pose", position['x'], position['y'])
-        success = navigator.goto(position, quaternion)
-
-        if success:
-            rospy.loginfo("reached room 1  enterance")
-        else:
-            rospy.loginfo("The base failed to reach room 1  enterance")
-
-        # Enter this room if green circle...
-        if cI.green_circle_flag:
-            x = points['room1_centre_xy'][0]
-            y = points['room1_centre_xy'][1]
-            theta = 0 # SPECIFY THETA (ROTATION) HERE
-            position = {'x': x, 'y' : y}
-            quaternion = {'r1' : 0.000, 'r2' : 0.000, 'r3' : np.sin(theta/2.0), 'r4' : np.cos(theta/2.0)}
-
-            rospy.loginfo("Go to (%s, %s) pose", position['x'], position['y'])
-            success = navigator.goto(position, quaternion)
-
-            if success:
-                rospy.loginfo("Reached the room 1 centre")
-            else:
-                rospy.loginfo("The base failed to reach room 1 centre")
-
-        # Else go to other enterance
-        else:
-            x = points['room2_entrance_xy'][0]
-            y = points['room2_entrance_xy'][1]
-            theta = 0 # SPECIFY THETA (ROTATION) HERE
-            position = {'x': x, 'y' : y}
-            quaternion = {'r1' : 0.000, 'r2' : 0.000, 'r3' : np.sin(theta/2.0), 'r4' : np.cos(theta/2.0)}
-
-            rospy.loginfo("Go to (%s, %s) pose", position['x'], position['y'])
-            success = navigator.goto(position, quaternion)
-            for i in range(10):
-                pub.publish(spin)
-                rate.sleep()
-
-            if success:
-                rospy.loginfo("Reached room 2 enterance")
-            else:
-                rospy.loginfo("The base failed to reach room 2 enterance")
-
-            # Enter this room if green circle...
-            if cI.green_circle_flag:
-                x = points['room2_centre_xy'][0]
-                y = points['room2_centre_xy'][1]
-                theta = 0 # SPECIFY THETA (ROTATION) HERE
-                position = {'x': x, 'y' : y}
-                quaternion = {'r1' : 0.000, 'r2' : 0.000, 'r3' : np.sin(theta/2.0), 'r4' : np.cos(theta/2.0)}
-
-                rospy.loginfo("Go to (%s, %s) pose", position['x'], position['y'])
-                success = navigator.goto(position, quaternion)
-
-                if success:
-                    rospy.loginfo("Reached room 2 centre")
-                else:
-                    rospy.loginfo("The base failed to reach room 2 centre")
         #rospy.spin()
     except KeyboardInterrupt:
         print("Shutting down")
