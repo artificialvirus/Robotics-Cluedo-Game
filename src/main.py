@@ -479,6 +479,7 @@ def main(args):
                     pub.publish(spin)
                     rate.sleep()
                 
+                objDetec = ObjectDetection(camera=True)
                 while cv2.contourArea(rI.contour) < 10500:
                         pub.publish(desired_velocity)
                         rate.sleep()
@@ -544,6 +545,7 @@ def main(args):
                         pub.publish(spin)
                         rate.sleep()
                 
+                objDetec = ObjectDetection(camera=True)
                 while cv2.contourArea(rI.contour) < 10500:
                         pub.publish(desired_velocity)
                         rate.sleep()
