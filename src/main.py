@@ -34,7 +34,8 @@ flann_prms = dict(algorithm = flann_index_lsh,
 Template = namedtuple('Template', 'image, name, keypoints, descriptors')
 
 import os.path
-path = os.path.expanduser("/home/csunix/sc19ao/catkin_ws/src/group_project/world/input_points.yaml")
+path = os.path.expanduser("/home/csunix/sc19ban/catkin_ws/src/group_project/world/input_points.yaml")
+
 import yaml
 with open(path,"r") as stream:
     points = yaml.safe_load(stream)
@@ -171,7 +172,9 @@ class ObjectDetection():
                      'plum' : 'plum.png'}
 
         for name, filename in tmplts.iteritems():
-            image = cv2.imread('/home/csunix/sc19ao/catkin_ws/src/group_project/cluedo_images/' + filename)
+
+            image = cv2.imread('/home/csunix/sc19ban/catkin_ws/src/group_project/cluedo_images/' + filename)
+
             image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             self.tmplt(image.copy(), name)
 
@@ -352,7 +355,7 @@ class colourIdentifier():
             contour_sizes = [(cv2.contourArea(contour), contour) for contour in contours]
             biggest_contour = max(contour_sizes, key=lambda x: x[0])[1]
             M = cv2.moments(biggest_contour)
-            cx, cy = int(M['m10']/M['m00']), int(M['m01']/M['m00'])
+            cx, cy = int(M['m10']/(M['m00']+1e-5)), int(M['m01']/(M['m00']+1e-5))
             if cv2.contourArea(biggest_contour) > 5 :
                 self.green_circle_flag = True
 
@@ -362,6 +365,104 @@ class colourIdentifier():
         cv2.waitKey(3)
 # Create a node of your class in the main and ensure it stays up and running
 # handling exceptions and such
+
+class rectangleIdentifier():
+
+    def __init__(self):
+        # Initialise the value you wish to use for sensitivity in the colour detection (10 should be enough)
+        self.sensitivity = 10
+        # Remember to initialise a CvBridge() and set up a subscriber to the image topic you wish to use
+        self.bridge = CvBridge()
+
+        # We covered which topic to subscribe to should you wish to receive image data
+        self.image_sub = rospy.Subscriber("camera/rgb/image_raw",Image, self.callback)
+
+
+        self.found_rectangle = False
+        self.x = 0
+        self.y = 0
+        self.contours = []
+
+    def callback(self, data):
+        # Convert the received image into a opencv image
+        # But remember that you should always wrap a call to this conversion method in an exception handler
+        try:
+            cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
+        except CvBridgeError as e:
+            print(e)
+        # Set the upper and lower bounds for the two colours you wish to identify
+        # hsv_green_lower = np.array([55 - self.sensitivity, 100, 0])
+        # hsv_green_upper = np.array([65 + self.sensitivity, 255, 255])
+
+        hsv_yellow_lower = np.array([35-self.sensitivity,50,15])
+        hsv_red_lower1 = np.array([10 - self.sensitivity,50,15])
+
+        hsv_blue_lower = np.array([100 - self.sensitivity,30,15])
+        hsv_purple_lower = np.array([140 - self.sensitivity,30,15])
+                # hsv_red_lower2 = np.array([175 - self.sensitivity,160,0])
+        hsv_purple_upper = np.array([150+self.sensitivity,255,255])
+
+        hsv_blue_upper = np.array([100+self.sensitivity,255,255])
+
+        hsv_yellow_upper = np.array([20+self.sensitivity,255,255])
+
+        hsv_red_upper1 = np.array([-5 + self.sensitivity,255,255])
+        # hsv_red_upper2 = np.array([170 + self.sensitivity,255,255])
+
+        # Convert the rgb image into a hsv image [5, 5, 50], [25, 25, 145]
+        Hsv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
+
+        # lower_mask_red = cv2.inRange(cv_image, hsv_red_lower1, hsv_red_upper1)
+        # upper_mask_red = cv2.inRange(cv_image, hsv_red_lower2, hsv_red_upper2)
+        # filter1 = lower_mask_red + upper_mask_red
+        filter1 = cv2.inRange(Hsv_image, hsv_red_lower1, hsv_red_upper1)
+        # filter2 = cv2.inRange(Hsv_image, hsv_green_lower, hsv_green_upper)
+        filter3 = cv2.inRange(Hsv_image, hsv_yellow_lower, hsv_yellow_upper)
+        filter4 = cv2.inRange(Hsv_image, hsv_blue_lower, hsv_blue_upper)
+        filter5 = cv2.inRange(Hsv_image, hsv_purple_lower, hsv_purple_upper)
+        # Filter out everything but particular colours using the cv2.inRange() method
+        # Do this for each colour
+        # mask = cv2.bitwise_or(filter1,filter2)
+        output = cv2.bitwise_and(cv_image, cv_image, mask=filter1)
+
+        contours, heirachical = cv2.findContours(filter1 ,cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        if len(contours) > 0:
+            contour_sizes = [(cv2.contourArea(contour), contour) for contour in contours]
+            biggest_contour = max(contour_sizes, key=lambda x: x[0])[1]
+            M = cv2.moments(biggest_contour)
+            cx, cy = int(M['m10']/(M['m00']+1e-5)), int(M['m01']/(M['m00']+1e-5))
+            if cv2.contourArea(biggest_contour) > 5 :
+                self.found_rectangle = True
+                self.contour = biggest_contour
+                # self.x = cx
+                # self.y = cy
+            else:
+                self.found_rectangle = False
+        else:
+            self.found_rectangle = False
+
+        cv2.namedWindow('camera_Feed2')
+        cv2.imshow('camera_Feed2', output)
+        cv2.waitKey(3)
+def find_coordinates(contours):
+    xy = []
+    for cnt in contours:
+            approx = cv2.approxPolyDP(cnt, 0.009 * cv2.arcLength(cnt, True), True)
+            n = approx.ravel()
+            i = 0
+            for j in n :
+                if(i % 2 == 0):
+                    x = n[i]
+                    y = n[i + 1]
+
+                    # String containing the co-ordinates.
+                    xy.append(x)
+                    xy.append(y)
+                    string = str(x) + " " + str(y)
+
+                i = i + 1
+    return xy
 def main(args):
     # Instantiate your class
     # And rospy.init the entire node
@@ -387,12 +488,125 @@ def main(args):
 
 
         pub = rospy.Publisher('mobile_base/commands/velocity', Twist, queue_size=10)
+        rospy.loginfo('2PLEASE NOTICE THIS NOTICE')
         rate = rospy.Rate(5)
         spin = Twist()
         spin.angular.z = 0.8
 
+        spin2 = Twist()
+        spin2.angular.z = -0.8
 
-        rospy.spin()
+        for i in range(3):
+            pub.publish(spin2)
+            rate.sleep()
+
+        desired_velocity = Twist()
+        desired_velocity.linear.x = 0.3
+
+        x = points['room1_entrance_xy'][0]
+        y = points['room1_entrance_xy'][1]
+        theta = 0 # SPECIFY THETA (ROTATION) HERE
+        position = {'x': x, 'y' : y}
+        quaternion = {'r1' : 0.000, 'r2' : 0.000, 'r3' : np.sin(theta/2.0), 'r4' : np.cos(theta/2.0)}
+
+        rospy.loginfo("Go to (%s, %s) pose", position['x'], position['y'])
+        success = navigator.goto(position, quaternion)
+
+        if success:
+            rospy.loginfo("reached room 1  enterance")
+        else:
+            rospy.loginfo("The base failed to reach room 1  enterance")
+
+        # Enter this room if green circle...
+        if cI.green_circle_flag:
+            x = points['room1_centre_xy'][0]
+            y = points['room1_centre_xy'][1]
+            theta = 0 # SPECIFY THETA (ROTATION) HERE
+            position = {'x': x, 'y' : y}
+            quaternion = {'r1' : 0.000, 'r2' : 0.000, 'r3' : np.sin(theta/2.0), 'r4' : np.cos(theta/2.0)}
+
+            rospy.loginfo("Go to (%s, %s) pose", position['x'], position['y'])
+            success = navigator.goto(position, quaternion)
+
+            if success:
+                rospy.loginfo("Reached the room 1 centre")
+                rI = rectangleIdentifier()
+                count_rot = 0
+                count_img = 0
+
+                for i in range(40):
+                    pub.publish(spin)
+                    rate.sleep()
+                    if rI.found_rectangle is True:
+                        break
+                if rI.found_rectangle is True:
+                    initial_cx = rI.x
+                    initial_cy = rI.y
+                    while cv2.contourArea(rI.contour) < 7000:
+                        print (rI.found_rectangle)
+                        pub.publish(desired_velocity)
+                        rate.sleep()
+                        if rI.found_rectangle is False:
+                            for i in range(40):
+                                pub.publish(spin)
+                                rate.sleep()
+                                if rI.found_rectangle is True:
+                                    break
+
+                    objDetec = ObjectDetection(camera=True)
+                    rospy.spin()
+
+
+            else:
+                rospy.loginfo("The base failed to reach room 1 centre")
+
+        # Else go to other enterance
+        else:
+            x = points['room2_entrance_xy'][0]
+            y = points['room2_entrance_xy'][1]
+            theta = 0 # SPECIFY THETA (ROTATION) HERE
+            position = {'x': x, 'y' : y}
+            quaternion = {'r1' : 0.000, 'r2' : 0.000, 'r3' : np.sin(theta/2.0), 'r4' : np.cos(theta/2.0)}
+
+            rospy.loginfo("Go to (%s, %s) pose", position['x'], position['y'])
+            success = navigator.goto(position, quaternion)
+            for i in range(10):
+                pub.publish(spin)
+                rate.sleep()
+
+            if success:
+                rospy.loginfo("Reached room 2 enterance")
+
+            else:
+                rospy.loginfo("The base failed to reach room 2 enterance")
+
+            # Enter this room if green circle...
+            if cI.green_circle_flag:
+                x = points['room2_centre_xy'][0]
+                y = points['room2_centre_xy'][1]
+                theta = 0 # SPECIFY THETA (ROTATION) HERE
+                position = {'x': x, 'y' : y}
+                quaternion = {'r1' : 0.000, 'r2' : 0.000, 'r3' : np.sin(theta/2.0), 'r4' : np.cos(theta/2.0)}
+
+                rospy.loginfo("Go to (%s, %s) pose", position['x'], position['y'])
+                success = navigator.goto(position, quaternion)
+
+                if success:
+                    rospy.loginfo("Reached room 2 centre")
+                    rI = rectangleIdentifier()
+                    for i in range(40):
+                        pub.publish(spin)
+                        rate.sleep()
+                        if rI.found_rectangle is True:
+                            break
+                    if rI.found_rectangle is True:
+                        while cv2.contourArea(rI.contour) < 10000:
+                            pub.publish(desired_velocity)
+                            rate.sleep()
+
+
+                else:
+                    rospy.loginfo("The base failed to reach room 2 centre")
 
 
 
