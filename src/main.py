@@ -544,12 +544,22 @@ def main(args):
                     rate.sleep()
                 for i in range(156):
                     if rI.found_rectangle is True:
-                        break
-                if rI.found_rectangle is True:
-                    initial_cx = rI.x
-                    initial_cy = rI.y
-                    while cv2.contourArea(rI.contour) < 7000:
-                        print (rI.found_rectangle)
+                        count_true = count_true + 1
+                        count_false_final = count_false
+                        already_true_flag = True
+                    else:
+                        if already_true_flag is False:
+                            count_false = count_false + 1
+                    pub.publish(spin)
+                    rate.sleep()
+                    print(rI.found_rectangle)
+                iter = int(count_false_final + (count_true/2-2))
+                for i in range(iter):
+                    pub.publish(spin)
+                    rate.sleep()
+                
+                objDetec = ObjectDetection(camera=True)
+                while cv2.contourArea(rI.contour) < 10500:
                         pub.publish(desired_velocity)
                         rate.sleep()
                         if rI.found_rectangle is False:
@@ -623,6 +633,7 @@ def main(args):
                         pub.publish(spin)
                         rate.sleep()
                 
+                objDetec = ObjectDetection(camera=True)
                 while cv2.contourArea(rI.contour) < 10500:
                         pub.publish(desired_velocity)
                         rate.sleep()
