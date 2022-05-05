@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 import rospy
 import sys
-
+from kobuki_msgs.msg import BumperEvent
 from geometry_msgs.msg import Twist, Vector3
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
@@ -34,7 +34,7 @@ flann_prms = dict(algorithm = flann_index_lsh,
 Template = namedtuple('Template', 'image, name, keypoints, descriptors')
 
 import os.path
-path = os.path.expanduser("/home/csunix/sc19ban/catkin_ws/src/group_project/world/input_points.yaml")
+path = os.path.expanduser("~/catkin_ws/src/group_project/world/input_points.yaml")
 
 import yaml
 with open(path,"r") as stream:
@@ -49,6 +49,7 @@ class GoToPose():
 
 
         self.goal_sent = False
+        self.bump = False
 
 
 	# What to do if shut down (e.g. Ctrl-C or failure)
@@ -88,6 +89,25 @@ class GoToPose():
         self.goal_sent = False
         return result
 
+    def processBump(data):
+        if (data.state == BumperEvent.PRESSED):
+            self.bump = True
+                # pub = rospy.Publisher('mobile_base/commands/velocity', Twist, queue_size=10)
+                # rate = rospy.Rate(5)
+                # spin = Twist()
+                # desired_velocity = Twist()
+                # desired_velocity.linear.x = -0.3
+                # for i in range(5):
+                #
+                #     pub.publish(desired_velocity)
+                #     rate.sleep()
+
+        else:
+            self.bump = False
+        rospy.loginfo("Bumper Event")
+        rospy.loginfo(data.bumper)
+
+
     def shutdown(self):
         if self.goal_sent:
             self.move_base.cancel_goal()
@@ -123,7 +143,8 @@ class ObjectDetection():
             cv_image = self.bridge.imgmsg_to_cv2(data, 'bgr8')
             print(cv_image)
             if self.detected_character == True:
-                cv2.imwrite('/home/csunix/sc19ao/catkin_ws/src/group_project/' +'cv_image.png', cv_image)
+                cv2.imwrite(os.path.expanduser('~/catkin_ws/src/group_project/') +'cv_image.png', cv_image)
+
             else:
                 print('character not found')
 
@@ -173,7 +194,7 @@ class ObjectDetection():
 
         for name, filename in tmplts.iteritems():
 
-            image = cv2.imread('/home/csunix/sc19ban/catkin_ws/src/group_project/cluedo_images/' + filename)
+            image = cv2.imread(os.path.expanduser('~/catkin_ws/src/group_project/cluedo_images/') + filename)
 
             image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             self.tmplt(image.copy(), name)
@@ -256,7 +277,7 @@ class ObjectDetection():
 
             counter = Counter(detected)
 
-            file_path = '/home/csunix/sc19ao/catkin_ws/src/group_project/'
+            file_path = os.path.expanduser('~/catkin_ws/src/group_project/')
             with open(file_path + 'cluedo_character.txt', 'w') as txt_file:
                 txt_file.write("Detected: " + counter.most_common(1)[0][0])
 
@@ -278,7 +299,7 @@ class ObjectDetection():
                      'plum' : 'plum.png'}
 
         for name, filename in tmplts.iteritems():
-            image = cv2.imread('/home/csunix/sc19ao/catkin_ws/src/group_project/cluedo_images/' + filename)
+            image = cv2.imread(os.path.expanduser('~/catkin_ws/src/group_project/cluedo_images/') + filename)
 
 
         image_to_gray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
@@ -296,7 +317,7 @@ class ObjectDetection():
         cv2.drawContours(image,contours,-1,[0,255,0],2)
 
 
-        #cv2.imwrite('/home/csunix/sc19ao/catkin_ws/src/group_project/'+ 'found_character.png', image)
+        #cv2.imwrite('/home/csunix/sc19ban/catkin_ws/src/group_project/'+ 'found_character.png', image)
 
 
 
@@ -426,7 +447,7 @@ class rectangleIdentifier():
         output = cv2.bitwise_and(cv_image, cv_image, mask=filter1)
 
         contours, heirachical = cv2.findContours(filter1 ,cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
+# filter2,3,4 as well
         if len(contours) > 0:
             contour_sizes = [(cv2.contourArea(contour), contour) for contour in contours]
             biggest_contour = max(contour_sizes, key=lambda x: x[0])[1]
@@ -463,6 +484,10 @@ def find_coordinates(contours):
 
                 i = i + 1
     return xy
+
+
+
+
 def main(args):
     # Instantiate your class
     # And rospy.init the entire node
@@ -483,16 +508,16 @@ def main(args):
 
         rospy.init_node('nav_test', anonymous=True)
 
-
-        objDet = ObjectDetection(camera=True)
-
+        cI = colourIdentifier()
+        rI = rectangleIdentifier()
+        # objDet = ObjectDetection(camera=True)
+        navigator = GoToPose()
 
         pub = rospy.Publisher('mobile_base/commands/velocity', Twist, queue_size=10)
-        rospy.loginfo('2PLEASE NOTICE THIS NOTICE')
         rate = rospy.Rate(5)
         spin = Twist()
         spin.angular.z = 0.8
-
+        bumper = rospy.Subscriber('mobile_base/events/bumper', BumperEvent, navigator.processBump)
         spin2 = Twist()
         spin2.angular.z = -0.8
 
@@ -516,7 +541,9 @@ def main(args):
             rospy.loginfo("reached room 1  enterance")
         else:
             rospy.loginfo("The base failed to reach room 1  enterance")
-
+        for i in range(40):
+            pub.publish(spin)
+            rate.sleep()
         # Enter this room if green circle...
         if cI.green_circle_flag:
             x = points['room1_centre_xy'][0]
@@ -542,7 +569,7 @@ def main(args):
                 if rI.found_rectangle is True:
                     initial_cx = rI.x
                     initial_cy = rI.y
-                    while cv2.contourArea(rI.contour) < 7000:
+                    while cv2.contourArea(rI.contour) < 10000:
                         print (rI.found_rectangle)
                         pub.publish(desired_velocity)
                         rate.sleep()
@@ -552,7 +579,10 @@ def main(args):
                                 rate.sleep()
                                 if rI.found_rectangle is True:
                                     break
-
+                        if navigator.bump is True:
+                            print('REVERSE')
+                            # pub.publish(desired_velocity)
+                            # rate.sleep()
                     objDetec = ObjectDetection(camera=True)
                     rospy.spin()
 
@@ -580,6 +610,9 @@ def main(args):
             else:
                 rospy.loginfo("The base failed to reach room 2 enterance")
 
+            for i in range(40):
+                pub.publish(spin)
+                rate.sleep()
             # Enter this room if green circle...
             if cI.green_circle_flag:
                 x = points['room2_centre_xy'][0]
