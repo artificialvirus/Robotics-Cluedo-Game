@@ -325,11 +325,20 @@ class rectangleIdentifier():
         except CvBridgeError as e:
             print(e)
         # Set the upper and lower bounds for the two colours you wish to identify
-        hsv_green_lower = np.array([55 - self.sensitivity, 100, 0])
-        hsv_green_upper = np.array([65 + self.sensitivity, 255, 255])
+        # hsv_green_lower = np.array([55 - self.sensitivity, 100, 0])
+        # hsv_green_upper = np.array([65 + self.sensitivity, 255, 255])
 
+        hsv_yellow_lower = np.array([35-self.sensitivity,50,100])
         hsv_red_lower1 = np.array([10 - self.sensitivity,50,100])
-        # hsv_red_lower2 = np.array([175 - self.sensitivity,160,0])
+
+        hsv_blue_lower = np.array([100 - self.sensitivity,30,100])
+        hsv_purple_lower = np.array([140 - self.sensitivity,30,15])
+                # hsv_red_lower2 = np.array([175 - self.sensitivity,160,0])
+        hsv_purple_upper = np.array([150+self.sensitivity,255,255])
+
+        hsv_blue_upper = np.array([100+self.sensitivity,255,255])
+
+        hsv_yellow_upper = np.array([20+self.sensitivity,255,255])
 
         hsv_red_upper1 = np.array([-5 + self.sensitivity,255,255])
         # hsv_red_upper2 = np.array([170 + self.sensitivity,255,255])
@@ -341,12 +350,14 @@ class rectangleIdentifier():
         # upper_mask_red = cv2.inRange(cv_image, hsv_red_lower2, hsv_red_upper2)
         # filter1 = lower_mask_red + upper_mask_red
         filter1 = cv2.inRange(Hsv_image, hsv_red_lower1, hsv_red_upper1)
-        filter2 = cv2.inRange(Hsv_image, hsv_green_lower, hsv_green_upper)
-
+        # filter2 = cv2.inRange(Hsv_image, hsv_green_lower, hsv_green_upper)
+        filter3 = cv2.inRange(Hsv_image, hsv_yellow_lower, hsv_yellow_upper)
+        filter4 = cv2.inRange(Hsv_image, hsv_blue_lower, hsv_blue_upper)
+        filter5 = cv2.inRange(Hsv_image, hsv_purple_lower, hsv_purple_upper)
         # Filter out everything but particular colours using the cv2.inRange() method
         # Do this for each colour
-        mask = cv2.bitwise_or(filter1,filter2)
-        output = cv2.bitwise_and(cv_image, cv_image, mask=filter1)
+        # mask = cv2.bitwise_or(filter1,filter2)
+        output = cv2.bitwise_and(cv_image, cv_image, mask=filter4)
 
         contours, heirachical = cv2.findContours(filter1 ,cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if len(contours) > 0:
