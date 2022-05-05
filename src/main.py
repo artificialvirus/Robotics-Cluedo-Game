@@ -49,7 +49,6 @@ class GoToPose():
 
 
         self.goal_sent = False
-        self.bump = False
 
 
 	# What to do if shut down (e.g. Ctrl-C or failure)
@@ -88,25 +87,6 @@ class GoToPose():
 
         self.goal_sent = False
         return result
-
-    def processBump(data):
-        if (data.state == BumperEvent.PRESSED):
-            self.bump = True
-                # pub = rospy.Publisher('mobile_base/commands/velocity', Twist, queue_size=10)
-                # rate = rospy.Rate(5)
-                # spin = Twist()
-                # desired_velocity = Twist()
-                # desired_velocity.linear.x = -0.3
-                # for i in range(5):
-                #
-                #     pub.publish(desired_velocity)
-                #     rate.sleep()
-
-        else:
-            self.bump = False
-        rospy.loginfo("Bumper Event")
-        rospy.loginfo(data.bumper)
-
 
     def shutdown(self):
         if self.goal_sent:
@@ -485,9 +465,25 @@ def find_coordinates(contours):
                 i = i + 1
     return xy
 
+global bump = False
 
+def processBump(data):
+    if (data.state == BumperEvent.PRESSED):
+        bump = True
+        # pub = rospy.Publisher('mobile_base/commands/velocity', Twist, queue_size=10)
+        # rate = rospy.Rate(5)
+        # spin = Twist()
+        # desired_velocity = Twist()
+        # desired_velocity.linear.x = -0.3
+        # for i in range(5):
+        #
+        #     pub.publish(desired_velocity)
+        #     rate.sleep()
 
-
+    else:
+        bump = False
+    rospy.loginfo("Bumper Event")
+    rospy.loginfo(data.bumper)
 def main(args):
     # Instantiate your class
     # And rospy.init the entire node
@@ -517,7 +513,7 @@ def main(args):
         rate = rospy.Rate(5)
         spin = Twist()
         spin.angular.z = 0.8
-        bumper = rospy.Subscriber('mobile_base/events/bumper', BumperEvent, navigator.processBump)
+        bumper = rospy.Subscriber('mobile_base/events/bumper', BumperEvent, processBump)
         spin2 = Twist()
         spin2.angular.z = -0.8
 
@@ -579,10 +575,9 @@ def main(args):
                                 rate.sleep()
                                 if rI.found_rectangle is True:
                                     break
-                        if navigator.bump is True:
-                            print('REVERSE')
-                            # pub.publish(desired_velocity)
-                            # rate.sleep()
+                        # if bump:
+                        #     pub.publish(-desired_velocity)
+                        #     rate.sleep()
                     objDetec = ObjectDetection(camera=True)
                     rospy.spin()
 
