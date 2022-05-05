@@ -229,7 +229,7 @@ class ObjectDetection():
             counter = Counter(detected)
 
             file_path = '/home/csunix/sc19ao/catkin_ws/src/group_project/'
-            with open(file_path + 'cluedo_character.txt', 'x') as txt_file:
+            with open(file_path + 'cluedo_character.txt', 'w') as txt_file:
                 txt_file.write("Detected: " + counter.most_common(1)[0][0])
         else:
             print("Can not find.")
