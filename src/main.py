@@ -422,9 +422,13 @@ class rectangleIdentifier():
         # Filter out everything but particular colours using the cv2.inRange() method
         # Do this for each colour
         # mask = cv2.bitwise_or(filter1,filter2)
-        output = cv2.bitwise_and(cv_image, cv_image, mask=filter1)
+        mask = cv2.bitwise_or(filter1, filter3)
+        mask = cv2.bitwise_or(mask, filter4)
+        mask = cv2.bitwise_or(mask, filter5)
+    
+        output = cv2.bitwise_and(cv_image, cv_image, mask=mask)
 
-        contours, heirachical = cv2.findContours(filter1 ,cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, heirachical = cv2.findContours(mask ,cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
         if len(contours) > 0:
             contour_sizes = [(cv2.contourArea(contour), contour) for contour in contours]
