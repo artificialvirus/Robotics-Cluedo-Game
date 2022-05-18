@@ -122,7 +122,7 @@ class ObjectDetection():
             cv_image = self.bridge.imgmsg_to_cv2(data, 'bgr8')
           
             if self.detected_character == True:
-                cv2.imwrite(os.path.expanduser('~/catkin_ws/src/group_project/') +'cluedo_character.png', cv_image)
+                cv2.imwrite(os.path.expanduser('~/catkin_ws/src/group_project/output/') + 'cluedo_character.png', cv_image)
             else:
                 print('character not found')
 
@@ -255,7 +255,7 @@ class ObjectDetection():
 
             counter = Counter(detected)
 
-            file_path = os.path.expanduser('~/catkin_ws/src/group_project/')
+            file_path = os.path.expanduser('~/catkin_ws/src/group_project/output/')
             with open(file_path + 'cluedo_character.txt', 'w') as txt_file:
                 txt_file.write("Detected: " + counter.most_common(1)[0][0])
 
